@@ -5,6 +5,7 @@
 !*.h
 !*.c
 !*.cc
+!*.ino
 
 !.gitignore
 !*/	
