@@ -1,11 +1,13 @@
 *
+!.gitignore
+
+!*/
+
+!/mech_for_good/*.ino
 
 !*.cpp
 !*.hpp
 !*.h
 !*.c
 !*.cc
-!*.ino
-
-!.gitignore
-!*/	
+!*.ino	
