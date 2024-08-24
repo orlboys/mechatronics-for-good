@@ -38,16 +38,26 @@ const int pm2_5_aqi_values[] = {50, 100, 150, 200, 300, 500};
 const float mq_breakpoints[] = {400.0, 800.0, 1200.0, 1600.0, 2000.0, 5000.0};
 const int mq_aqi_values[] = {50, 100, 150, 200, 300, 500};
 
-// Global variables
+// Data struct
 
-float mq_ppm; // ppm given from MQ135
-float correctedPPM; // corrected ppm given from MQ135
-uint16_t pm; // pm2.5 um/l Using uint16_t, more efficient on our low-memory arduino
-int aqi; // the AQI value calculated based off of pm and ppm
-bool fan;
+struct Data 
+{
+  /**
+  * @brief A contained structure holding all data from sensors.
+  * @n This simplifies function signatures as a single object, making the code more modular.
+  * @n It also increases scalability in the case of extra sensors being added.
+  */
+  float mq_ppm; // ppm given from MQ135
+  float mq_corrected_ppm; // corrected ppm given from MQ135
+  uint16_t pm; // pm2.5 um/l Using uint16_t, more efficient on our low-memory arduino
+  int aqi; // the AQI value calculated based off of pm and ppm
+  bool fan;
+};
+
+Data SensorData; // Struct containing all sensor data
+
 
 // SETUP AND LOOP FUNCTIONS
-
 
 void setup() 
 {
@@ -66,28 +76,86 @@ void loop()
 {
   Serial.println("In loop function.");
   delay(1000);
-  pm = pm_collect_data();
-  mq_ppm, correctedPPM = mq_collect_data();
-  aqi = calculate_aqi();
+  collect_data();
+  SensorData.aqi = calculate_aqi();
   lcd_display(1);
   auto_purify();
+}
+
+// Data Collection
+
+void collect_data()
+{
+  /** @brief An overarching data collection function **/
+  SensorData.pm = pm_collect_data();
+  mq_collect_data();
+}
+
+void mq_collect_data() 
+{
+
+  /**
+  *@brief get the gas PPM reading from the MQ135 sensor
+  *@param temperature a constant temperature to get corrected PPM
+  *@param humidity a constant humidity to get corrected PPM
+  **/
+
+  SensorData.mq_ppm = mq135_sensor.getPPM(); // We have to change this directly here --> C++ doesn't allow us to return multiple values from one function
+  SensorData.mq_corrected_ppm = mq135_sensor.getCorrectedPPM(temperature, humidity);
+
+  // Printing to Serial Monitor
+
+  Serial.print("PPM: ");
+  Serial.print(SensorData.mq_ppm);
+  Serial.print("\t Corrected PPM: ");
+  Serial.print(SensorData.mq_corrected_ppm);
+  Serial.println("ppm");
+}
+
+int pm_collect_data()
+{
+  /**
+  *@brief Gets the number of 0.3um PM in 0.1L of air
+  *@param PARTICLENUM_0_3_UM_EVERY0_1L_AIR returns number of particles of size 0.3um per 0.1L
+  *
+  * also can be used for various sizes of particles:
+  *
+  *@n PARTICLENUM_0_5_UM_EVERY0_1L_AIR 
+  *@n PARTICLENUM_1_0_UM_EVERY0_1L_AIR 
+  *@n PARTICLENUM_2_5_UM_EVERY0_1L_AIR 
+  *@n PARTICLENUM_5_0_UM_EVERY0_1L_AIR 
+  *@n PARTICLENUM_10_UM_EVERY0_1L_AIR
+  *
+  *@return int --> 0.3um PM in 0.1L air
+  */
+
+  int part_count = particle.gainParticleNum_Every0_1L(PARTICLENUM_0_3_UM_EVERY0_1L_AIR);
+  Serial.print("PM2.5 ");
+  Serial.println(part_count);
+  delay(1000);
+  return part_count;
 }
 
 // Purification / Relay Functions
 
 void auto_purify()
 {
-  if (aqi > 200)
+  /**
+  * @brief Determines if the AQI is at a point where the purification system must be turned on.
+  * @n This limit is 200.
+  **/
+
+  if (SensorData.aqi > 200)
   {
     fan_on();
     Serial.println("AQI above limit");
-    fan = true;
+    SensorData.fan = true;
   }
   else
   {
     fan_off();
     Serial.println("AQI below limit");
-    fan = false;
+    SensorData.fan = false;
   }
 }
 
@@ -95,6 +163,8 @@ void auto_purify()
 
 int calculate_aqi()
 {
+  int pm = SensorData.pm;
+  int correctedPPM = SensorData.mq_corrected_ppm;
   bool max_val_bool = pm < correctedPPM; // Is true if the MQ135 is greater than the PM2.5 sensor --> Since we want to take the highest possible value
   float prev = 0;
   if (max_val_bool) // If the MQ is greater than the PM2.5 Sensor
@@ -128,33 +198,6 @@ int calculate_aqi()
   return 0;
 }
 
-
-// MQ135-DEDICATED FUNCTIONS
-
-int mq_collect_data() 
-{
-
-  /**
-  *@brief get the gas PPM reading from the MQ135 sensor
-  *@param temperature a constant temperature to get corrected PPM
-  *@param humidity a constant humidity to get corrected PPM
-  **/
-
-  int ppm = mq135_sensor.getPPM();
-  int c_ppm = mq135_sensor.getCorrectedPPM(temperature, humidity);
-
-  // Printing to Serial Monitor
-
-  Serial.print("PPM: ");
-  Serial.print(ppm);
-  Serial.print("\t Corrected PPM: ");
-  Serial.print(c_ppm);
-  Serial.println("ppm");
-
-  return ppm, c_ppm;
-
-}
-
 // PM2.5-DEDICATED FUNCTIONS
 
 void pm_setup()
@@ -164,30 +207,6 @@ void pm_setup()
     delay(1000);
   }
   Serial.println("sensor begin success!");
-}
-
-int pm_collect_data()
-{
-  /**
-  *@brief Gets the number of 0.3um PM in 0.1L of air
-  *@param PARTICLENUM_0_3_UM_EVERY0_1L_AIR returns number of particles of size 0.3um per 0.1L
-  *
-  * also can be used for various sizes of particles:
-  *
-  *@n PARTICLENUM_0_5_UM_EVERY0_1L_AIR 
-  *@n PARTICLENUM_1_0_UM_EVERY0_1L_AIR 
-  *@n PARTICLENUM_2_5_UM_EVERY0_1L_AIR 
-  *@n PARTICLENUM_5_0_UM_EVERY0_1L_AIR 
-  *@n PARTICLENUM_10_UM_EVERY0_1L_AIR
-  *
-  *@return int --> 0.3um PM in 0.1L air
-  */
-
-  int part_count = particle.gainParticleNum_Every0_1L(PARTICLENUM_0_3_UM_EVERY0_1L_AIR);
-  Serial.print("PM2.5 ");
-  Serial.println(part_count);
-  delay(1000);
-  return part_count;
 }
 
 // LCD-related Functions
@@ -217,9 +236,9 @@ void display_data()
 {
   lcd.home();
   lcd.clear();
-  lcd.print(pm);
+  lcd.print(SensorData.pm);
   lcd.setCursor(0,1);
-  lcd.print(mq_ppm);
+  lcd.print(SensorData.mq_corrected_ppm);
 }
 
 void display_aqi()
@@ -228,11 +247,11 @@ void display_aqi()
   lcd.clear();
   lcd.print("Overall AQI: ");
   lcd.setCursor(0,1);
-  lcd.print(aqi);
+  lcd.print(SensorData.aqi);
 
   lcd.setCursor(7,1);
 
-  if (fan == true)
+  if (SensorData.fan == true)
   {
     lcd.print("Filtering");
   }
@@ -258,7 +277,7 @@ void fan_off()
 
 // I2C Bus Functions
 
-void reset_I2C_Bus()
+void reset_I2C_Bus() // for debugging
 {
   Wire.end();
   delay(100);
