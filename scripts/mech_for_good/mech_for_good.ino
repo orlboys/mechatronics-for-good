@@ -8,6 +8,10 @@
 #include "DFRobot_AirQualitySensor.h"
 #include <LiquidCrystal_I2C.h>
 
+// Our function definition header file
+
+#include "mech_for_good.h"
+
 // Defining Pins and IIC Addresses
 
 #define PIN_MQ135 A2
@@ -39,20 +43,6 @@ const float mq_breakpoints[] = {400.0, 1000.0, 2000.0, 5000.0, 10000.0, 40000.0}
 const int mq_aqi_values[] = {50, 100, 150, 200, 300, 500};
 
 // Data struct
-
-struct Data 
-{
-  /**
-  * @brief A contained structure holding all data from sensors.
-  * @n This simplifies function signatures as a single object, making the code more modular.
-  * @n It also increases scalability in the case of extra sensors being added.
-  */
-  float mq_ppm; // ppm given from MQ135
-  float mq_corrected_ppm; // corrected ppm given from MQ135
-  uint16_t pm; // pm2.5 um/l Using uint16_t, more efficient on our low-memory arduino
-  int aqi; // the AQI value calculated based off of pm and ppm
-  bool fan;
-};
 
 Data SensorData; // Struct containing all sensor data
 
