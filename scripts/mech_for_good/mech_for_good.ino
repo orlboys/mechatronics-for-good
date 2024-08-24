@@ -8,10 +8,6 @@
 #include "DFRobot_AirQualitySensor.h"
 #include <LiquidCrystal_I2C.h>
 
-// Our function definition header file
-
-#include "mech_for_good.h"
-
 // Defining Pins and IIC Addresses
 
 #define PIN_MQ135 A2
