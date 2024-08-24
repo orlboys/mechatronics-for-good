@@ -32,16 +32,28 @@ float humidity = 25.0; // Assumed Humidity
 * example_breakpoints[i] is the breakpoint which makes example_aqi_values[i] the current AQI value
 **/
 
-const float pm2_5_breakpoints[] = {12.0, 35.0, 55.0, 150.0, 250.0, 500.0};
-const int pm2_5_aqi_values[] = {50, 100, 150, 200, 300, 500};
+const float pm2_5_breakpoints[] = {0, 360, 1050, 1650, 4500, 7500, 15000};
+const int pm2_5_aqi_values[] = {0, 50, 100, 150, 200, 300, 500};
 
-const float mq_breakpoints[] = {400.0, 1000.0, 2000.0, 5000.0, 10000.0, 40000.0};
-const int mq_aqi_values[] = {50, 100, 150, 200, 300, 500};
+const float mq_breakpoints[] = {0, 400.0, 1000.0, 2000.0, 5000.0, 10000.0, 40000.0};
+const int mq_aqi_values[] = {0, 50, 100, 150, 200, 300, 500};
 
 // Data struct
+struct Data 
+{
+  /**
+  * @brief A contained structure holding all data from sensors.
+  * @n This simplifies function signatures as a single object, making the code more modular.
+  * @n It also increases scalability in the case of extra sensors being added.
+  */
+  float mq_ppm; // ppm given from MQ135
+  float mq_corrected_ppm; // corrected ppm given from MQ135
+  uint16_t pm; // pm2.5 um/l Using uint16_t, more efficient on our low-memory arduino
+  int aqi; // the AQI value calculated based off of pm and ppm
+  bool fan;
+};
 
 Data SensorData; // Struct containing all sensor data
-
 
 // SETUP AND LOOP FUNCTIONS
 
@@ -157,39 +169,44 @@ int calculate_aqi()
   * @return int - the calculated AQI range.
   **/
 
+  Serial.print("PM2.5 Reading: ");
+  Serial.println(SensorData.pm);
+  Serial.print("MQ135 PPM: ");
+  Serial.println(SensorData.mq_ppm);
+  Serial.print("MQ135 Corrected PPM: ");
+  Serial.println(SensorData.mq_corrected_ppm);
   int pm = SensorData.pm;
   int correctedPPM = SensorData.mq_corrected_ppm;
-  bool max_val_bool = pm < correctedPPM; // Is true if the MQ135 is greater than the PM2.5 sensor --> Since we want to take the highest possible value
-  float prev = 0;
-  if (max_val_bool) // If the MQ is greater than the PM2.5 Sensor
+
+  int mq_aqi = 0;
+  int pm_aqi = 0;
+
+  for (int i = 0; i < 6; i++)
   {
-    for (int i = 0; i <= 5; i++) 
+    if (correctedPPM <= mq_breakpoints[i]) // If the PPM is less than or equal to the breakpoint above it
     {
-      if ((prev < correctedPPM) && (correctedPPM <= mq_breakpoints[i]))
-      {
-        return mq_aqi_values[i];
-      }
-      else
-      {
-        prev = mq_breakpoints[i];
-      }
+      mq_aqi = mq_aqi_values[i]; // Returns the highest breakpoint / aqi value to which the correctedPPM is below it
+      break;
     }
   }
-  else
+  if (correctedPPM > mq_breakpoints[6]) 
+  {  // Handle value greater than the highest breakpoint (if you are larger than every breakpoint in the array)
+    mq_aqi = mq_aqi_values[6];
+  }
+  for (int i = 1; i < 7; i++)
   {
-    for (int i = 0; i <= 5; i++) 
+    if (pm <= pm2_5_breakpoints[i])
     {
-      if ((prev < pm) && (pm <= pm2_5_breakpoints[i]))
-      {
-        return pm2_5_aqi_values[i];
-      }
-      else
-      {
-        prev = pm2_5_breakpoints[i];
-      }
+      pm_aqi = pm2_5_aqi_values[i];
+      break;
     }
   }
-  return 0;
+
+  int final_aqi = max(mq_aqi, pm_aqi); // gets the highest out of the two AQI's
+  Serial.print("Final AQI: ");
+  Serial.println(final_aqi);
+
+  return final_aqi;
 }
 
 // PM2.5-DEDICATED FUNCTIONS
