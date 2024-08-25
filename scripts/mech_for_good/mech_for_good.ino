@@ -280,7 +280,7 @@ void display_aqi()
 
 void fan_on()
 {
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW); // Note it is switched --> Low = On, High = Off
   Serial.println("Fan On ");
 }
 
