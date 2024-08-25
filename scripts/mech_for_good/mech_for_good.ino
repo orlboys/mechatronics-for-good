@@ -143,7 +143,7 @@ void auto_purify()
   * @n This limit is 150, calculated in calculate_aqi based on the higher of CO2 and PM2.5 levels.
   **/
 
-  if (SensorData.aqi > 150)
+  if (SensorData.aqi >= 100)
   {
     fan_on();
     Serial.println("AQI above limit");
@@ -280,13 +280,13 @@ void display_aqi()
 
 void fan_on()
 {
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, LOW);
   Serial.println("Fan On ");
 }
 
 void fan_off()
 {
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
   Serial.println("Fan Off ");
 }
 

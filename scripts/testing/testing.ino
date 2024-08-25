@@ -112,7 +112,7 @@ void auto_purify()
   * @n This limit is 150, calculated in calculate_aqi based on the higher of CO2 and PM2.5 levels.
   **/
 
-  if (SensorData.aqi > 150)
+  if (SensorData.aqi >= 100)
   {
     fan_on();
     SensorData.fan = true;
@@ -348,6 +348,32 @@ test(MQDataCollection)
   assertTrue(SensorData.mq_corrected_ppm > 0);
 }
 
+// LCD tests
+
+test(LCDInitialization) 
+{
+  // Ensure the LCD is initialized
+  lcd.setCursor(0, 0);
+  lcd.print("Init Test");
+  assertEqual(lcd.getCursorX(), 0);
+  assertEqual(lcd.getCursorY(), 0);
+}
+
+test(LCDCorrectData)
+{
+  lcd_display(1);
+  // must manually confirm the correct AQI is being seen between serial monitor and lcd screen
+  assertTrue(true); //keeps tests running
+}
+
+test(LCDFilterText)
+{
+  SensorData.fan = true;
+  lcd_display(1);
+
+  //must manually confirm the "filtering" text is displayed on the LCD screen
+  assertTrue(true); //keeps tests running
+}
 
 // Integration Test
 test(FullSystemCycle) {
